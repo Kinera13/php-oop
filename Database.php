@@ -1,21 +1,22 @@
 <?php
+ini_set('display_errors', 1);
+ini_set('display_startup_errors', 1);
+error_reporting(E_ALL);
 //Заносим данные для подключения к базе данных в константы
 define('HOST', 'localhost');
 define('USER', 'root');
 define('PASSWORD', 'root');
 define('DB', 'agatech');
+define('PORT', '3307');
 class Database
 {
     public $db;
     //Создаём и проверяем подключение к базе данных
-    public function __construct($host, $user, $password, $db){
-        mysqli_report(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT);
-        $this->db = mysqli_connect($host, $user, $password);
+    public function __construct($host, $db, $user, $password, $port){
+        $this->db = new PDO("mysql:host=localhost; dbname=agatech; port=3307", 'root', 'root');
+        $this->db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
         if(!$this->db){
             exit('No connection this database');
-        }
-        if(!mysqli_select_db($this->db, $db)){
-            exit('No table');
         }
 
     }
@@ -27,15 +28,16 @@ class Database
         else {
             $sql = "SELECT * FROM users ORDER BY name ASC ";
         }
-        $res = mysqli_query($this->db,$sql);
+        $res = $this->db->query($sql);
         if (!$res){
             return FALSE;
         }
         //потом выводим в цикле
-        for ($i=0; $i < mysqli_num_rows($res); $i++){
-            $row[] = mysqli_fetch_assoc($res);
-        }
-        return $row;
+
+            $row = $res->fetchAll(PDO::FETCH_ASSOC);
+
+       return $row;
+
 
     }
     //Разносим содержимое суперглобального массива $_POST по переменным
@@ -43,11 +45,12 @@ class Database
         $name = $_POST['name'];
         $password = $_POST['password'];
         //запрашиваем данные из базы данных, используя данные, пришедшие из глобального массива POST
-        $sql = "SELECT password FROM users WHERE name='$name'";
-        $res = mysqli_query($this->db,$sql);
-        $value = mysqli_fetch_assoc($res);
+
+        $sql = $this->db->prepare("SELECT password FROM users WHERE name= :name ");
+        $sql->execute([':name'=>$name]);
+        $value = $sql->fetchAll(PDO::FETCH_ASSOC);
         //Сравниваем хеш из базы данных с хешированными данными из поля $_POST['password'] и в случае успеха происходит запись логина в суперглобальный массив $_SESSION и  редирект на траницу index.php
-        if (password_verify($password, $value['password'])){
+        if (password_verify($password, $value[0]['password'])){
             $_SESSION['name'] = $name;
             header('Location: index.php');
 
@@ -65,38 +68,45 @@ class Database
         //Проверяем нажатие кнопки
         if (isset($_POST['sibmit'])) {
             //Разносим содержимое суперглобального массива $_POST по переменным и экранируем специальные символы, если они приходят
-            $name = mysqli_real_escape_string($this->db, $_POST['name']);
-            $email = mysqli_real_escape_string($this->db, $_POST['email']);
-            $password = mysqli_real_escape_string($this->db, $_POST['password']);
+            $name =  $_POST['name'];
+            $email = $_POST['email'];
+            $password = $_POST['password'];
             //хешируем пароль
             $password = password_hash($password, PASSWORD_DEFAULT);
             //делаем запрос к базе данных
-            $sql_name = "SELECT * FROM users WHERE name = name ";
-            $result = $res = mysqli_query($this->db, $sql_name);
+            $sql_name = $this->db->prepare("SELECT * FROM users WHERE name = :name ");
+            $result = $sql_name->execute(['name'=>$name]);
             //проверяем на соответствие регулярному выражению
             if (!preg_match("/^[a-zа-яё0-9-_]{2,20}$/iu", $name)) {
                 $name_error = "Имя должно содержать только буквы русского и латинского алфавитов и пробел.Длина логина от 2 до 20 символов (включительно).";
-
+            }
+            else{
+                $name_error = null;
             }
             //проверяем, является ли введёная строка реальным электронным адресом
             if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
                 $email_error = "Пожалуйста, введите действительный адрес электронной почты";
             }
-
+            else{
+                $email_error = null;
+            }
             //Проверяем длину пароля
             if (strlen($password) < 6) {
                 $password_error = "Пароль должен состоять минимум из 6 символов";
             }
+            else{
+                $password_error = null;
+            }
             //Если всё верно, то делаем новую запись в базу данных, логин и пароль записываем в гобальный массив $_SESSION и делаем редирект на index.php
-            if(!$name_error &&!$email_error &&!$password_error){
-                $sql = "INSERT INTO users ( name, email, password) VALUES ('$name', '$email', '$password')";
-                $res = mysqli_query($this->db,$sql);
+            if($name_error == null && $email_error==null && $password_error == null){
+                $sql = $this->db->prepare("INSERT INTO users ( name, email, password) VALUES (:name, :email, :password)");
+                $res = $sql->execute(['name'=> $name, 'email' => $email, 'password' => $password]);
               //$value = mysqli_fetch_assoc($res);
                 $_SESSION['name'] = $name;
                 $_SESSION['password'] = $password;
                 header('Location: index.php');
             }
-            //иначе пвыводим ошибки
+            //иначе выводим ошибки
             else {
                 echo $name_error.'</br>';
                 echo $email_error.'</br>';
@@ -110,9 +120,9 @@ class Database
         //записываем значение из суперглобального массива $_GET в переменную
         $id = $_GET['id'];
         //на основании этого значения запрашиваем нужную запись из базы данных
-        $sql = "SELECT * FROM users WHERE id = '$id'";
-        $res = mysqli_query($this->db, $sql);
-        $value = mysqli_fetch_assoc($res);
+        $sql = $this->db->prepare("SELECT * FROM users WHERE id = :id");
+        $sql->execute([':id'=>$id]);
+        $value = $sql->fetch();
         //записываем значение логина и e-mail в суперглобальный массив $_SESSION
         $_SESSION['name'] = $value['name'];
         $_SESSION['email'] = $value['email'];
@@ -122,7 +132,7 @@ class Database
         if (isset($_POST['delete'])){
             $this->get_delete_db();
         }
-        //иначе - редактируем
+        //иначе - редактируем*
         elseif(isset($_POST['update'])){
             $this->get_edit_db();
         }
@@ -138,21 +148,21 @@ class Database
             //записываем значение из суперглобального массива $_GET в переменную
             $id = $_GET['id'];
             //делаем запрос из базы данных по паролю
-            $my = "SELECT password FROM users WHERE password = '$password'";
-            $query = mysqli_query($this->db, $my);
-            $result = mysqli_fetch_assoc($query);
+            $my = $this->db->prepare("SELECT password FROM users WHERE password = :password");
+            $my->execute([':password' => $password]);
+            $result = $my->fetch(PDO::FETCH_ASSOC);
             //проверяем, было ли изменено содержание поля "пароль"
             if ($password!=$result['password']){
                 //если да, то экранируем специальные символы и хешируем пароль
-                $password = mysqli_real_escape_string($this->db, $password);
+                //$password = mysqli_real_escape_string($this->db, $password);
                 $password = password_hash($password, PASSWORD_DEFAULT);
             }
             //проверяем поля на пустоту
             //если все поля заполнены, то выполняем запрос на изменение записи в базе данных
             if ($name != "" && $email != "" && $password != "") {
                 //делаем запрос на изменение существующей в базе данных записи
-                $sql = "UPDATE users SET name = '$name', email = '$email', password = '$password' WHERE id = '$id'";
-                $res = mysqli_query($this->db, $sql);
+                $sql = $this->db->prepare("UPDATE users SET name = :name, email = :email, password = :password WHERE id = :id");
+                $res = $sql->execute([':name' => $name, ':email' => $email, ':password' => $password, ':id' => $id]);
                 //записываем логин в суперглобальный массив $_SESSION
                 $_SESSION['name'] = $name;
                 $_SESSION['password'] = $password;
@@ -173,10 +183,9 @@ class Database
             //записываем значение из суперглобального массива $_GET в переменную
             $id = $_GET['id'];
             //делаем запрос на удаление записи из базы данных
-            $sql = "DELETE FROM users WHERE id = '$id'";
-            $res = mysqli_query($this->db, $sql);
+            $sql = $this->db->prepare("DELETE FROM users WHERE id = :id");
+            $res = $sql->execute([':id' => $id]);
             header('Location: index.php');
-            session_unset();
         }
     }
 

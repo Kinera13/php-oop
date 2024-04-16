@@ -8,7 +8,7 @@ class addUser
         //если в суперглобальный массив $_SERVER пришли данные из формы
         if ($_SERVER["REQUEST_METHOD"] == "POST") {
        //создаём экземпляр класса Database
-        $db = new Database(HOST, USER, PASSWORD, DB);
+        $db = new Database(HOST, USER, PASSWORD, DB, PORT);
         return $db->get_reg_user_db();
         }
     }

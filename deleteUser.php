@@ -6,7 +6,7 @@ class deleteUser
     public function delete_user()
     {
         //создаём экземпляр класса Database()
-        $db = new Database(HOST, USER, PASSWORD, DB);
+        $db = new Database(HOST, USER, PASSWORD, DB, PORT);
         //выполняем метод get_delete_db
         return $db->get_delete_db();
     }

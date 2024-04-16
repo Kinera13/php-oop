@@ -6,7 +6,7 @@ class index
     public $text;
     public function get_all(){
         //создаём новый объект класса Database()
-        $db = new Database(HOST, USER, PASSWORD, DB);
+        $db = new Database(HOST, USER, PASSWORD, DB, PORT);
         //выполняем метод get_all_db()
         return $db->get_all_db();
     }

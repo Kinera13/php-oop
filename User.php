@@ -6,7 +6,7 @@ class User
 {
     public function get_one(){
         //создаём экземпляр класса Database()
-        $db = new Database(HOST, USER, PASSWORD, DB);
+        $db = new Database(HOST, USER, PASSWORD, DB, PORT);
         //выполняем метод get_one_db()
         return $db->get_one_db();
     }

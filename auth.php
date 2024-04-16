@@ -8,7 +8,7 @@ class auth
      //если в суперглобальный массив $_SERVER пришли данные из формы
      if ($_SERVER["REQUEST_METHOD"] == "POST") {
          //создаём экземпляр класса Database()
-         $db = new Database(HOST, USER, PASSWORD, DB);
+         $db = new Database(HOST, USER, PASSWORD, DB, PORT);
          //выполняем метод get_auth_db()
          return $db->get_auth_db();
      }
